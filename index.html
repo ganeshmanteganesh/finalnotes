@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>📂 Supabase Folder Viewer (Headers & Search)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  background: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#left {
+  z-index: 50;
+  background: #fff;
+  overflow-y: auto;
+  box-sizing: border-box;
+  transition: transform .3s;
+  box-shadow: 2px 0 10px rgba(0,0,0,.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: 350px;
+  height: 100%;
+  transform: translateX(-100%);
+  padding: 1rem;
+}
+
+#left.open {
+  transform: translateX(0);
+}
+
+#right {
+  flex: 1;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#text_viewer_container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  width: 100%;
+  height: 50%;
+  max-height: 90vh;
+  overflow-y: auto;
+  transition: all 0.4s ease;
+}
+
+/* ✅ Full-screen active mode */
+#text_viewer_container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  background: #fff;
+  z-index: 100;
+  padding: 20px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+}
+
+
+
+#text_viewer {
+  flex: 1;
+  background: #fff;
+  padding: 1rem;
+  border-radius: .75rem;
+  white-space: pre-wrap;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
+  border: 5px solid #e2e8f0;
+  line-height: 1.8;
+  position: relative;
+  overflow-y: auto;
+  font-size: 1.1rem;
+}
+
+.highlight {
+  background: #fcd34d;
+  transition: background .5s;
+}
+
+select, input, button:not(#prev_topic_btn):not(#next_topic_btn) {
+  width: 100%;
+  margin-bottom: .75rem;
+  padding: 1rem;
+  border-radius: .5rem;
+  border: 1px solid #cbd5e1;
+}
+
+button {
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+  transition: background .15s;
+}
+
+button:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: .5rem;
+}
+
+li {
+  padding: .75rem 1rem;
+  cursor: pointer;
+  transition: background .1s;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+li:last-child {
+  border-bottom: none;
+}
+
+li:hover {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.small {
+  font-size: .85rem;
+  color: #475569;
+}
+
+.file-list {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #e6edf3;
+  border-radius: 8px;
+  background: #fff;
+}
+
+@media(min-width:640px) {
+  body {
+    flex-direction: row;
+  }
+  #left {
+    position: static;
+    width: 200px;
+    max-width: none;
+    height: 100%;
+    transform: translateX(0);
+    border-right: 2px solid #e2e8f0;
+  }
+  #menu_toggle_btn {
+    display: none;
+  }
+} </style>
+
+</head>
+<body>
+
+<!-- Left panel -->
+<div id="left">
+  <div class="flex justify-between items-center mb-4 border-b pb-4">
+    <h3 class="text-xl font-bold text-gray-800">📋 Navigator (Supabase)</h3>
+    <button id="close_menu_btn" class="sm:hidden text-gray-500 p-1 rounded-full bg-gray-100">✕</button>
+  </div>
+
+  <h4 class="text-sm font-semibold mb-2 text-gray-700">Storage Management</h4>
+  <label class="block text-xs font-medium text-gray-700">📁 Folder:</label>
+  <select id="folder_dropdown" class="mb-4 text-sm"></select>
+
+  <input type="text" id="new_folder_name" placeholder="New folder name" class="mb-2 text-sm"/>
+  <button id="add_folder_btn" class="mb-6 text-sm">➕ Add Folder</button>
+
+  <label class="block text-xs font-medium text-gray-700">📄 Upload Folder (.txt only):</label>
+  <input type="file" id="folder_input" webkitdirectory directory multiple class="mb-6" />
+
+  <h4 class="text-sm font-semibold mb-2 text-gray-700 border-t pt-4">Search & Topics</h4>
+  <label class="block text-xs font-medium text-gray-700">🔍 Search:</label>
+  <input type="text" id="search_box" placeholder="Search headers..." class="mb-4 text-sm" />
+
+  <label class="block text-xs font-medium text-gray-700">📄 Current Topic:</label>
+  <select id="topic_dropdown" class="mb-6 text-sm"></select>
+
+  <label class="block text-xs font-medium text-gray-700">🧭 Headings/Subheadings:</label>
+  <ul id="subheading_list" class="bg-gray-50 shadow-inner text-sm"></ul>
+</div>
+
+<!-- Right panel -->
+<div id="right">
+  <button id="menu_toggle_btn" class="sm:hidden fixed top-4 left-4 z-40 p-3 bg-indigo-600 text-white rounded-full shadow-lg">☰</button>
+
+  <div id="text_viewer_container">
+    <div id="text_viewer" class="text-gray-800 text-base">
+      <h1 class="text-2xl font-bold mb-4 text-indigo-700">Welcome</h1>
+      <p class="mb-3">Upload a folder containing many <code>.txt</code> files. Files will be saved to Supabase and displayed here.</p>
+    </div>
+
+    <div id="navigation_controls" class="flex justify-center space-x-4 py-4 sm:pt-4">
+      <button id="prev_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">&larr; Prev</button>
+      <button id="next_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div style="padding:12px;">
+    <div class="small mb-2">Selected folder files (client-side preview)</div>
+    <div id="selected_files" class="file-list p-2 mb-3 small"></div>
+    <div class="flex gap-2">
+      <button id="upload_all_btn" class="btn">📤 Upload Folder(s) to Supabase</button>
+      <button id="clear_selection_btn" class="btn" style="background:#64748b">Clear</button>
+      <button id="refresh_btn" class="btn" style="background:#0ea5a4">Refresh Folders</button>
+    </div>
+  </div>
+</div>
+
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const SUPABASE_URL = "https://xxubhwmczpgxqflvcwzd.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4dWJod21jenBneHFmbHZjd3pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MjI5MjUsImV4cCI6MjA2OTQ5ODkyNX0.nAWluTg9q57gb7XFTlkvhZHxTbK0rx2O2wdmEAt_F7Q";
+  // ------------------------------------------------------------------
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// DOM elements
+const folderDropdown = document.getElementById("folder_dropdown");
+const topicDropdown = document.getElementById("topic_dropdown");
+const subheadingList = document.getElementById("subheading_list");
+const textViewer = document.getElementById("text_viewer");
+const folderInput = document.getElementById("folder_input");
+const searchBox = document.getElementById("search_box");
+const addFolderBtn = document.getElementById("add_folder_btn");
+const newFolderInput = document.getElementById("new_folder_name");
+const uploadAllBtn = document.getElementById("upload_all_btn");
+const selectedFilesDiv = document.getElementById("selected_files");
+const clearSelBtn = document.getElementById("clear_selection_btn");
+const refreshBtn = document.getElementById("refresh_btn");
+const prevTopicBtn = document.getElementById("prev_topic_btn");
+const nextTopicBtn = document.getElementById("next_topic_btn");
+const leftPanel = document.getElementById("left");
+const menuToggleBtn = document.getElementById("menu_toggle_btn");
+const closeMenuBtn = document.getElementById("close_menu_btn");
+
+let currentFolder = null;
+let currentTopics = [];
+let currentSections = [];
+let currentFileContent = "";
+let currentFileIndex = -1;
+let selectedFiles = [];
+
+// Read file as text
+function readFileAsText(file){
+    return new Promise((res, rej)=>{
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = e => rej(e);
+        r.readAsText(file);
+    });
+}
+
+// Show selected files
+function showSelectedFiles(files){
+    selectedFilesDiv.innerHTML = '';
+    if (!files || files.length === 0){
+        selectedFilesDiv.innerHTML = '<div class="p-2 small text-gray-500">No files selected</div>';
+        return;
+    }
+    files.forEach((f, idx)=>{
+        const d = document.createElement('div');
+        d.className = 'p-2 border-b small';
+        d.textContent = `page_${idx+1}`;
+        selectedFilesDiv.appendChild(d);
+    });
+}
+
+// Convert files for Supabase
+async function convertFilesToObjects(fileArray){
+    const out = [];
+    for(let i=0;i<fileArray.length;i++){
+        const f = fileArray[i];
+        const content = await readFileAsText(f);
+        out.push({ name: `page_${i+1}.txt`, content });
+    }
+    return out;
+}
+
+async function uploadFolderToSupabase(folderName, fileObjs){
+    try{
+        const filesAsJson = await convertFilesToObjects(fileObjs);
+        const { data: existing } = await supabase.from('folders').select('*').eq('name', folderName).maybeSingle();
+
+        if(existing && Array.isArray(existing.files)){
+            const map = new Map();
+            for(const it of existing.files) map.set(it.filename||it.name, it.content);
+            for(const it of filesAsJson) map.set(it.name, it.content);
+            const merged = Array.from(map.entries()).map(([filename, content])=>({ filename, content }));
+            await supabase.from('folders').update({ files: merged }).eq('name', folderName);
+        } else {
+            const payload = filesAsJson.map(f=>({ filename: f.name, content: f.content }));
+            await supabase.from('folders').insert([{ name: folderName, files: payload }]);
+        }
+    }catch(err){
+        console.error(err);
+        alert('Upload failed: '+(err.message||JSON.stringify(err)));
+    }
+}
+
+// Handle file input
+folderInput.addEventListener('change', e=>{
+    const files = Array.from(e.target.files||[]);
+    selectedFiles = files.filter(f=>f.name.toLowerCase().endsWith('.txt'));
+    showSelectedFiles(selectedFiles);
+});
+
+// Upload all
+uploadAllBtn.addEventListener('click', async ()=>{
+    if(!selectedFiles || selectedFiles.length===0){ alert('Select folder/files first'); return; }
+    uploadAllBtn.disabled = true;
+    uploadAllBtn.textContent = 'Uploading...';
+    const groups = groupByTopLevel(selectedFiles);
+    for(const [folderName, files] of Object.entries(groups)){
+        await uploadFolderToSupabase(folderName, files);
+    }
+    uploadAllBtn.textContent = 'Upload Folder(s) to Supabase';
+    uploadAllBtn.disabled = false;
+    await loadFolders();
+    alert('Upload complete');
+});
+
+// Clear selection
+clearSelBtn.addEventListener('click', ()=>{
+    selectedFiles = [];
+    folderInput.value = null;
+    showSelectedFiles([]);
+});
+
+// Add new folder
+addFolderBtn.addEventListener('click', async ()=>{
+    const name = (newFolderInput.value||'').trim();
+    if(!name){ alert('Enter folder name'); return; }
+    await supabase.from('folders').insert([{ name }]);
+    newFolderInput.value='';
+    await loadFolders();
+});
+
+// Group files by top-level folder
+function groupByTopLevel(files){
+    const groups = {};
+    for(const f of files){
+        const rel = f.webkitRelativePath||f.name;
+        const parts = rel.split('/');
+        const top = parts.length>1?parts[0]:'Uploaded_'+new Date().toISOString().replace(/[:.]/g,'-');
+        if(!groups[top]) groups[top]=[];
+        groups[top].push(f);
+    }
+    return groups;
+}
+
+// Load all folders
+async function loadFolders(){
+    const { data } = await supabase.from('folders').select('*').order('created_at',{ascending:true});
+    folderDropdown.innerHTML='';
+    if(!data || data.length===0){
+        folderDropdown.innerHTML='<option value="-1">No folders</option>';
+        topicDropdown.innerHTML='';
+        textViewer.innerHTML='<h2 class="text-lg font-semibold">No content</h2><p class="small">Upload a folder to get started.</p>';
+        return;
+    }
+    data.forEach(d=>{
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = `${d.name} (${Array.isArray(d.files)?d.files.length:0} files)`;
+        folderDropdown.appendChild(opt);
+    });
+    const last = localStorage.getItem('lastSelectedFolder');
+    const toSelect = last && Array.from(folderDropdown.options).some(o=>o.value===last)? last: folderDropdown.options[0].value;
+    folderDropdown.value = toSelect;
+    await selectFolder(toSelect);
+}
+
+// Select a folder
+async function selectFolder(name){
+    if(!name) return;
+    currentFolder = name;
+    localStorage.setItem('lastSelectedFolder', name);
+    const { data } = await supabase.from('folders').select('*').eq('name', name).maybeSingle();
+    const raw = data && data.files? data.files : [];
+    currentTopics = raw.map((it,i)=>({
+        name: `page_${i+1}.txt`,
+        content: it.content || '',
+        mainHeading: extractMainHeading(it.content||'', it.filename||it.name)
+    }));
+    showSelectedFiles(raw);
+
+    topicDropdown.innerHTML='';
+    if(currentTopics.length===0){
+        topicDropdown.innerHTML='<option value="-1">No files uploaded</option>';
+        textViewer.innerHTML=`<h1 class="text-2xl font-bold mb-4 text-gray-700">No Content</h1><p class="text-gray-600">No files in folder: <b>${currentFolder}</b>.</p>`;
+        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No extractable sections.</li>';
+        currentSections=[];
+        currentFileIndex=-1;
+        updateNavigationButtons();
+        return;
+    }
+
+    currentTopics.forEach((t,i)=>{
+        const option = document.createElement('option');
+        option.value=i;
+        option.textContent=t.mainHeading||t.name;
+        topicDropdown.appendChild(option);
+    });
+    showFileContent(0);
+}
+
+// Extract main heading
+function extractMainHeading(content,fallbackName){
+    const h = /^####\s*(.+?)\s*####/m.exec(content);
+    if(h && h[1]) return h[1].trim();
+    return fallbackName.replace(/\.txt$/i,'');
+}
+
+// Extract subheadings
+function extractHeadingsAndSubheadings(content){
+   const regex = /\*\*\s*([^*]*?:[^*]*?)\s*\*\*/gm;
+
+
+
+    const matches=[];
+    let m;
+    while((m=regex.exec(content))!==null) matches.push(m[1].trim());
+    return matches;
+}
+
+// Show file content
+function showFileContent(idx){
+    if(idx<0 || idx>=currentTopics.length) return;
+    currentFileIndex=idx;
+    currentFileContent=currentTopics[idx].content;
+    textViewer.innerHTML = `<pre>${currentFileContent}</pre>`;
+    const headings = extractHeadingsAndSubheadings(currentFileContent);
+    currentSections=headings;
+    subheadingList.innerHTML='';
+    if(headings.length===0){
+        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No headings found</li>';
+    } else {
+        headings.forEach(h=>{
+            const li = document.createElement('li');
+            li.textContent=h;
+            li.onclick=()=>{highlightHeading(h);}
+            subheadingList.appendChild(li);
+        });
+    }
+    topicDropdown.value=idx;
+    updateNavigationButtons();
+}
+
+function highlightHeading(heading) {
+  if (!heading) return;
+
+  const container = document.getElementById("text_viewer_container");
+  const textViewer = document.getElementById("text_viewer");
+
+  // Enter fullscreen
+  container.classList.add("fullscreen");
+
+  // Create close button if not exists
+  if (!document.getElementById("close_fullscreen")) {
+    const btn = document.createElement("button");
+    btn.id = "close_fullscreen";
+    btn.innerText = "× Close";
+    btn.style.cssText = `
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      z-index: 200;
+    `;
+    btn.onclick = () => {
+      container.classList.remove("fullscreen");
+      btn.remove();
+    };
+    container.appendChild(btn);
+  }
+
+  // Highlight the heading and scroll to it
+  const markerId = "scroll_marker_" + Math.random().toString(36).substr(2, 9);
+  const regex = new RegExp(heading, "i");
+  const highlighted = currentFileContent.replace(regex, `<span id="${markerId}" class="highlight">${heading}</span>`);
+  textViewer.innerHTML = `<pre>${highlighted}</pre>`;
+
+  const marker = document.getElementById(markerId);
+  if (marker) marker.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// Navigation buttons
+function updateNavigationButtons(){
+    prevTopicBtn.disabled = currentFileIndex<=0;
+    nextTopicBtn.disabled = currentFileIndex>=currentTopics.length-1;
+}
+
+topicDropdown.addEventListener('change', e=>{
+    const idx = parseInt(e.target.value);
+    if(!isNaN(idx)) showFileContent(idx);
+});
+
+prevTopicBtn.addEventListener('click', ()=>{ showFileContent(currentFileIndex-1); });
+nextTopicBtn.addEventListener('click', ()=>{ showFileContent(currentFileIndex+1); });
+
+folderDropdown.addEventListener('change', e=>{
+    selectFolder(e.target.value);
+});
+
+menuToggleBtn.addEventListener('click', ()=> leftPanel.classList.toggle('open'));
+closeMenuBtn.addEventListener('click', ()=> leftPanel.classList.remove('open'));
+refreshBtn.addEventListener('click', ()=> loadFolders());
+
+// 🔍 Search headers only
+searchBox.addEventListener('input', e => {
+    const val = e.target.value.toLowerCase();
+    Array.from(topicDropdown.options).forEach(opt => {
+        if (opt.value == "-1") return;
+        const t = currentTopics[parseInt(opt.value)];
+        opt.hidden = !(t.mainHeading && t.mainHeading.toLowerCase().includes(val));
+    });
+    const firstVisible = Array.from(topicDropdown.options).find(o => !o.hidden && o.value != "-1");
+    if (firstVisible) {
+        topicDropdown.value = firstVisible.value;
+        showFileContent(parseInt(firstVisible.value));
+    }
+});
+
+// Initialize
+loadFolders();
+</script>
+</body>
+</html>
