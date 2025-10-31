@@ -74,18 +74,23 @@ body {
 
 
 #text_viewer {
-  flex: 1;
-  background: #fff;
-  padding: 1rem;
-  border-radius: .75rem;
-  white-space: pre-wrap;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
-  border: 5px solid #e2e8f0;
-  line-height: 1.8;
-  position: relative;
-  overflow-y: auto;
-  font-size: 2rem;
+  flex: 1;
+  background: #fff;
+  padding: 1rem;
+  border-radius: .75rem;
+  white-space: pre-wrap;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
+  border: 5px solid #e2e8f0;
+  line-height: 1.8;
+  position: relative;
+  overflow-y: auto;
+  font-size: 1.5rem;
+
+  /* 👇 Add these two lines */
+  color: #000;         /* black text */
+  font-weight: bold;   /* bold text */
 }
+
 
 .highlight {
   background: #fcd34d;
@@ -229,13 +234,12 @@ li:hover {
   </div>
 </div>
 
-
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://xxubhwmczpgxqflvcwzd.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4dWJod21jenBneHFmbHZjd3pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MjI5MjUsImV4cCI6MjA2OTQ5ODkyNX0.nAWluTg9q57gb7XFTlkvhZHxTbK0rx2O2wdmEAt_F7Q";
-  // ------------------------------------------------------------------
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4dWJod21jenBneHFmbHZjd3pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MjI5MjUsImV4cCI6MjA2OTQ5ODkyNX0.nAWluTg9q57gb7XFTlkvhZHxTbK0rx2O2wdmEAt_F7Q";
+  // ------------------------------------------------------------------
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // DOM elements
@@ -266,271 +270,287 @@ let selectedFiles = [];
 
 // Read file as text
 function readFileAsText(file){
-    return new Promise((res, rej)=>{
-        const r = new FileReader();
-        r.onload = e => res(e.target.result);
-        r.onerror = e => rej(e);
-        r.readAsText(file);
-    });
+    return new Promise((res, rej)=>{
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = e => rej(e);
+        r.readAsText(file);
+    });
 }
 
 // Show selected files
 function showSelectedFiles(files){
-    selectedFilesDiv.innerHTML = '';
-    if (!files || files.length === 0){
-        selectedFilesDiv.innerHTML = '<div class="p-2 small text-gray-500">No files selected</div>';
-        return;
-    }
-    files.forEach((f, idx)=>{
-        const d = document.createElement('div');
-        d.className = 'p-2 border-b small';
-        d.textContent = `page_${idx+1}`;
-        selectedFilesDiv.appendChild(d);
-    });
+    selectedFilesDiv.innerHTML = '';
+    if (!files || files.length === 0){
+        selectedFilesDiv.innerHTML = '<div class="p-2 small text-gray-500">No files selected</div>';
+        return;
+    }
+    files.forEach((f, idx)=>{
+        const d = document.createElement('div');
+        d.className = 'p-2 border-b small';
+        d.textContent = `page_${idx+1}`;
+        selectedFilesDiv.appendChild(d);
+    });
 }
 
 // Convert files for Supabase
 async function convertFilesToObjects(fileArray){
-    const out = [];
-    for(let i=0;i<fileArray.length;i++){
-        const f = fileArray[i];
-        const content = await readFileAsText(f);
-        out.push({ name: `page_${i+1}.txt`, content });
-    }
-    return out;
+    const out = [];
+    for(let i=0;i<fileArray.length;i++){
+        const f = fileArray[i];
+        const content = await readFileAsText(f);
+        out.push({ name: `page_${i+1}.txt`, content });
+    }
+    return out;
 }
 
 async function uploadFolderToSupabase(folderName, fileObjs){
-    try{
-        const filesAsJson = await convertFilesToObjects(fileObjs);
-        const { data: existing } = await supabase.from('folders').select('*').eq('name', folderName).maybeSingle();
+    try{
+        const filesAsJson = await convertFilesToObjects(fileObjs);
+        const { data: existing } = await supabase.from('folders').select('*').eq('name', folderName).maybeSingle();
 
-        if(existing && Array.isArray(existing.files)){
-            const map = new Map();
-            for(const it of existing.files) map.set(it.filename||it.name, it.content);
-            for(const it of filesAsJson) map.set(it.name, it.content);
-            const merged = Array.from(map.entries()).map(([filename, content])=>({ filename, content }));
-            await supabase.from('folders').update({ files: merged }).eq('name', folderName);
-        } else {
-            const payload = filesAsJson.map(f=>({ filename: f.name, content: f.content }));
-            await supabase.from('folders').insert([{ name: folderName, files: payload }]);
-        }
-    }catch(err){
-        console.error(err);
-        alert('Upload failed: '+(err.message||JSON.stringify(err)));
-    }
+        if(existing && Array.isArray(existing.files)){
+            const map = new Map();
+            for(const it of existing.files) map.set(it.filename||it.name, it.content);
+            for(const it of filesAsJson) map.set(it.name, it.content);
+            const merged = Array.from(map.entries()).map(([filename, content])=>({ filename, content }));
+            await supabase.from('folders').update({ files: merged }).eq('name', folderName);
+        } else {
+            const payload = filesAsJson.map(f=>({ filename: f.name, content: f.content }));
+            await supabase.from('folders').insert([{ name: folderName, files: payload }]);
+        }
+    }catch(err){
+        console.error(err);
+        // Using a message box instead of alert()
+        document.getElementById('text_viewer').textContent = 'Upload failed: '+(err.message||JSON.stringify(err));
+    }
 }
 
 // Handle file input
 folderInput.addEventListener('change', e=>{
-    const files = Array.from(e.target.files||[]);
-    selectedFiles = files.filter(f=>f.name.toLowerCase().endsWith('.txt'));
-    showSelectedFiles(selectedFiles);
+    const files = Array.from(e.target.files||[]);
+    selectedFiles = files.filter(f=>f.name.toLowerCase().endsWith('.txt'));
+    showSelectedFiles(selectedFiles);
 });
 
 // Upload all
 uploadAllBtn.addEventListener('click', async ()=>{
-    if(!selectedFiles || selectedFiles.length===0){ alert('Select folder/files first'); return; }
-    uploadAllBtn.disabled = true;
-    uploadAllBtn.textContent = 'Uploading...';
-    const groups = groupByTopLevel(selectedFiles);
-    for(const [folderName, files] of Object.entries(groups)){
-        await uploadFolderToSupabase(folderName, files);
-    }
-    uploadAllBtn.textContent = 'Upload Folder(s) to Supabase';
-    uploadAllBtn.disabled = false;
-    await loadFolders();
-    alert('Upload complete');
+    if(!selectedFiles || selectedFiles.length===0){ 
+        // Using a message box instead of alert()
+        document.getElementById('text_viewer').textContent = 'Select folder/files first';
+        return; 
+    }
+    uploadAllBtn.disabled = true;
+    uploadAllBtn.textContent = 'Uploading...';
+    const groups = groupByTopLevel(selectedFiles);
+    for(const [folderName, files] of Object.entries(groups)){
+        await uploadFolderToSupabase(folderName, files);
+    }
+    uploadAllBtn.textContent = 'Upload Folder(s) to Supabase';
+    uploadAllBtn.disabled = false;
+    await loadFolders();
+    document.getElementById('text_viewer').innerHTML = '<h1 class="text-2xl font-bold mb-4 text-green-600">Upload Complete!</h1><p class="mb-3">Your files are now stored in Supabase.</p>';
 });
 
 // Clear selection
 clearSelBtn.addEventListener('click', ()=>{
-    selectedFiles = [];
-    folderInput.value = null;
-    showSelectedFiles([]);
+    selectedFiles = [];
+    folderInput.value = null;
+    showSelectedFiles([]);
 });
 
 // Add new folder
 addFolderBtn.addEventListener('click', async ()=>{
-    const name = (newFolderInput.value||'').trim();
-    if(!name){ alert('Enter folder name'); return; }
-    await supabase.from('folders').insert([{ name }]);
-    newFolderInput.value='';
-    await loadFolders();
+    const name = (newFolderInput.value||'').trim();
+    if(!name){ 
+        // Using a message box instead of alert()
+        document.getElementById('text_viewer').textContent = 'Enter folder name'; 
+        return; 
+    }
+    await supabase.from('folders').insert([{ name }]);
+    newFolderInput.value='';
+    await loadFolders();
 });
 
 // Group files by top-level folder
 function groupByTopLevel(files){
-    const groups = {};
-    for(const f of files){
-        const rel = f.webkitRelativePath||f.name;
-        const parts = rel.split('/');
-        const top = parts.length>1?parts[0]:'Uploaded_'+new Date().toISOString().replace(/[:.]/g,'-');
-        if(!groups[top]) groups[top]=[];
-        groups[top].push(f);
-    }
-    return groups;
+    const groups = {};
+    for(const f of files){
+        const rel = f.webkitRelativePath||f.name;
+        const parts = rel.split('/');
+        const top = parts.length>1?parts[0]:'Uploaded_'+new Date().toISOString().replace(/[:.]/g,'-');
+        if(!groups[top]) groups[top]=[];
+        groups[top].push(f);
+    }
+    return groups;
 }
 
 // Load all folders
 async function loadFolders(){
-    const { data } = await supabase.from('folders').select('*').order('created_at',{ascending:true});
-    folderDropdown.innerHTML='';
-    if(!data || data.length===0){
-        folderDropdown.innerHTML='<option value="-1">No folders</option>';
-        topicDropdown.innerHTML='';
-        textViewer.innerHTML='<h2 class="text-lg font-semibold">No content</h2><p class="small">Upload a folder to get started.</p>';
-        return;
-    }
-    data.forEach(d=>{
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = `${d.name} (${Array.isArray(d.files)?d.files.length:0} files)`;
-        folderDropdown.appendChild(opt);
-    });
-    const last = localStorage.getItem('lastSelectedFolder');
-    const toSelect = last && Array.from(folderDropdown.options).some(o=>o.value===last)? last: folderDropdown.options[0].value;
-    folderDropdown.value = toSelect;
-    await selectFolder(toSelect);
+    const { data } = await supabase.from('folders').select('*').order('created_at',{ascending:true});
+    folderDropdown.innerHTML='';
+    if(!data || data.length===0){
+        folderDropdown.innerHTML='<option value="-1">No folders</option>';
+        topicDropdown.innerHTML='';
+        textViewer.innerHTML='<h2 class="text-lg font-semibold">No content</h2><p class="small">Upload a folder to get started.</p>';
+        return;
+    }
+    data.forEach(d=>{
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = `${d.name} (${Array.isArray(d.files)?d.files.length:0} files)`;
+        folderDropdown.appendChild(opt);
+    });
+    const last = localStorage.getItem('lastSelectedFolder');
+    const toSelect = last && Array.from(folderDropdown.options).some(o=>o.value===last)? last: folderDropdown.options[0].value;
+    folderDropdown.value = toSelect;
+    await selectFolder(toSelect);
 }
 
 // Select a folder
 async function selectFolder(name){
-    if(!name) return;
-    currentFolder = name;
-    localStorage.setItem('lastSelectedFolder', name);
-    const { data } = await supabase.from('folders').select('*').eq('name', name).maybeSingle();
-    const raw = data && data.files? data.files : [];
-    currentTopics = raw.map((it,i)=>({
-        name: `page_${i+1}.txt`,
-        content: it.content || '',
-        mainHeading: extractMainHeading(it.content||'', it.filename||it.name)
-    }));
-    showSelectedFiles(raw);
+    if(!name) return;
+    currentFolder = name;
+    localStorage.setItem('lastSelectedFolder', name);
+    const { data } = await supabase.from('folders').select('*').eq('name', name).maybeSingle();
+    const raw = data && data.files? data.files : [];
+    currentTopics = raw.map((it,i)=>({
+        name: `page_${i+1}.txt`,
+        content: it.content || '',
+        mainHeading: extractMainHeading(it.content||'', it.filename||it.name)
+    }));
+    showSelectedFiles(raw);
 
-    topicDropdown.innerHTML='';
-    if(currentTopics.length===0){
-        topicDropdown.innerHTML='<option value="-1">No files uploaded</option>';
-        textViewer.innerHTML=`<h1 class="text-2xl font-bold mb-4 text-gray-700">No Content</h1><p class="text-gray-600">No files in folder: <b>${currentFolder}</b>.</p>`;
-        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No extractable sections.</li>';
-        currentSections=[];
-        currentFileIndex=-1;
-        updateNavigationButtons();
-        return;
-    }
+    topicDropdown.innerHTML='';
+    if(currentTopics.length===0){
+        topicDropdown.innerHTML='<option value="-1">No files uploaded</option>';
+        textViewer.innerHTML=`<h1 class="text-2xl font-bold mb-4 text-gray-700">No Content</h1><p class="text-gray-600">No files in folder: <b>${currentFolder}</b>.</p>`;
+        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No extractable sections.</li>';
+        currentSections=[];
+        currentFileIndex=-1;
+        updateNavigationButtons();
+        return;
+    }
 
-    currentTopics.forEach((t,i)=>{
-        const option = document.createElement('option');
-        option.value=i;
-        option.textContent=t.mainHeading||t.name;
-        topicDropdown.appendChild(option);
-    });
-    showFileContent(0);
+    currentTopics.forEach((t,i)=>{
+        const option = document.createElement('option');
+        option.value=i;
+        option.textContent=t.mainHeading||t.name;
+        topicDropdown.appendChild(option);
+    });
+    showFileContent(0);
 }
 
 // Extract main heading
-function extractMainHeading(content,fallbackName){
-    const h = /^####\s*(.+?)\s*####/m.exec(content);
-    if(h && h[1]) return h[1].trim();
-    return fallbackName.replace(/\.txt$/i,'');
+function extractMainHeading(content, fallbackName) {
+    // Regex to find #### Heading #### (group 1) or **Heading** (group 2)
+    // Removed 'g' flag to ensure only the first match is returned
+    const regex = /####\s*(.+?)\s*####|\*\*\s*([^*:]+(?::[^*]+)?)\s*\*\*/;
+    const h = regex.exec(content);
+    if (h) {
+        // Return group 1 (####) or group 2 (**)
+        return (h[1] || h[2]).trim();
+    }
+    return fallbackName.replace(/\.txt$/i, '');
 }
+
 
 // Extract subheadings
 function extractHeadingsAndSubheadings(content){
-   const regex = /\*\*\s*([^*]*?:[^*]*?)\s*\*\*/gm;
+   const regex = /\*\*\s*([^*]*?:[^*]*?)\s*\*\*/gm;
 
 
 
-    const matches=[];
-    let m;
-    while((m=regex.exec(content))!==null) matches.push(m[1].trim());
-    return matches;
+    const matches=[];
+    let m;
+    while((m=regex.exec(content))!==null) matches.push(m[1].trim());
+    return matches;
 }
 
 // Show file content
 function showFileContent(idx){
-    if(idx<0 || idx>=currentTopics.length) return;
-    currentFileIndex=idx;
-    currentFileContent=currentTopics[idx].content;
-    textViewer.innerHTML = `<pre>${currentFileContent}</pre>`;
-    const headings = extractHeadingsAndSubheadings(currentFileContent);
-    currentSections=headings;
-    subheadingList.innerHTML='';
-    if(headings.length===0){
-        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No headings found</li>';
-    } else {
-        headings.forEach(h=>{
-            const li = document.createElement('li');
-            li.textContent=h;
-            li.onclick=()=>{highlightHeading(h);}
-            subheadingList.appendChild(li);
-        });
-    }
-    topicDropdown.value=idx;
-    updateNavigationButtons();
+    if(idx<0 || idx>=currentTopics.length) return;
+    currentFileIndex=idx;
+    currentFileContent=currentTopics[idx].content;
+    textViewer.innerHTML = `<pre>${currentFileContent}</pre>`;
+    const headings = extractHeadingsAndSubheadings(currentFileContent);
+    currentSections=headings;
+    subheadingList.innerHTML='';
+    if(headings.length===0){
+        subheadingList.innerHTML='<li class="text-gray-500 italic p-3 text-xs">No headings found</li>';
+    } else {
+        headings.forEach(h=>{
+            const li = document.createElement('li');
+            li.textContent=h;
+            li.onclick=()=>{highlightHeading(h);}
+            subheadingList.appendChild(li);
+        });
+    }
+    topicDropdown.value=idx;
+    updateNavigationButtons();
 }
 
 function highlightHeading(heading) {
-  if (!heading) return;
+  if (!heading) return;
 
-  const container = document.getElementById("text_viewer_container");
-  const textViewer = document.getElementById("text_viewer");
+  const container = document.getElementById("text_viewer_container");
+  const textViewer = document.getElementById("text_viewer");
 
-  // Enter fullscreen
-  container.classList.add("fullscreen");
+  // Enter fullscreen
+  container.classList.add("fullscreen");
 
-  // Create close button if not exists
-  if (!document.getElementById("close_fullscreen")) {
-    const btn = document.createElement("button");
-    btn.id = "close_fullscreen";
-    btn.innerText = "× Close";
-    btn.style.cssText = `
-      position: absolute;
-      top: 15px;
-      right: 20px;
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      z-index: 200;
-    `;
-    btn.onclick = () => {
-      container.classList.remove("fullscreen");
-      btn.remove();
-    };
-    container.appendChild(btn);
-  }
+  // Create close button if not exists
+  if (!document.getElementById("close_fullscreen")) {
+    const btn = document.createElement("button");
+    btn.id = "close_fullscreen";
+    btn.innerText = "× Close";
+    btn.style.cssText = `
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      z-index: 200;
+    `;
+    btn.onclick = () => {
+      container.classList.remove("fullscreen");
+      btn.remove();
+    };
+    container.appendChild(btn);
+  }
 
-  // Highlight the heading and scroll to it
-  const markerId = "scroll_marker_" + Math.random().toString(36).substr(2, 9);
-  const regex = new RegExp(heading, "i");
-  const highlighted = currentFileContent.replace(regex, `<span id="${markerId}" class="highlight">${heading}</span>`);
-  textViewer.innerHTML = `<pre>${highlighted}</pre>`;
+  // Highlight the heading and scroll to it
+  const markerId = "scroll_marker_" + Math.random().toString(36).substr(2, 9);
+  const regex = new RegExp(heading, "i");
+  const highlighted = currentFileContent.replace(regex, `<span id="${markerId}" class="highlight">${heading}</span>`);
+  textViewer.innerHTML = `<pre>${highlighted}</pre>`;
 
-  const marker = document.getElementById(markerId);
-  if (marker) marker.scrollIntoView({ behavior: "smooth", block: "center" });
+  const marker = document.getElementById(markerId);
+  if (marker) marker.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // Navigation buttons
 function updateNavigationButtons(){
-    prevTopicBtn.disabled = currentFileIndex<=0;
-    nextTopicBtn.disabled = currentFileIndex>=currentTopics.length-1;
+    prevTopicBtn.disabled = currentFileIndex<=0;
+    nextTopicBtn.disabled = currentFileIndex>=currentTopics.length-1;
 }
 
 topicDropdown.addEventListener('change', e=>{
-    const idx = parseInt(e.target.value);
-    if(!isNaN(idx)) showFileContent(idx);
+    const idx = parseInt(e.target.value);
+    if(!isNaN(idx)) showFileContent(idx);
 });
 
 prevTopicBtn.addEventListener('click', ()=>{ showFileContent(currentFileIndex-1); });
 nextTopicBtn.addEventListener('click', ()=>{ showFileContent(currentFileIndex+1); });
 
 folderDropdown.addEventListener('change', e=>{
-    selectFolder(e.target.value);
+    selectFolder(e.target.value);
 });
 
 menuToggleBtn.addEventListener('click', ()=> leftPanel.classList.toggle('open'));
@@ -539,17 +559,17 @@ refreshBtn.addEventListener('click', ()=> loadFolders());
 
 // 🔍 Search headers only
 searchBox.addEventListener('input', e => {
-    const val = e.target.value.toLowerCase();
-    Array.from(topicDropdown.options).forEach(opt => {
-        if (opt.value == "-1") return;
-        const t = currentTopics[parseInt(opt.value)];
-        opt.hidden = !(t.mainHeading && t.mainHeading.toLowerCase().includes(val));
-    });
-    const firstVisible = Array.from(topicDropdown.options).find(o => !o.hidden && o.value != "-1");
-    if (firstVisible) {
-        topicDropdown.value = firstVisible.value;
-        showFileContent(parseInt(firstVisible.value));
-    }
+    const val = e.target.value.toLowerCase();
+    Array.from(topicDropdown.options).forEach(opt => {
+        if (opt.value == "-1") return;
+        const t = currentTopics[parseInt(opt.value)];
+        opt.hidden = !(t.mainHeading && t.mainHeading.toLowerCase().includes(val));
+    });
+    const firstVisible = Array.from(topicDropdown.options).find(o => !o.hidden && o.value != "-1");
+    if (firstVisible) {
+        topicDropdown.value = firstVisible.value;
+        showFileContent(parseInt(firstVisible.value));
+    }
 });
 
 // Initialize
