@@ -38,57 +38,37 @@ body {
 }
 
 #right {
-  flex: 1;
-  padding: 1rem;
-  box-sizing: border-box;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  flex: 1;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
-#text_viewer_container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 500px;
-  width: 100%;
-  height: 50%;
-  max-height: 90vh;
-  overflow-y: auto;
-  transition: all 0.4s ease;
-}
-
-/* ✅ Full-screen active mode */
-#text_viewer_container.fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  max-height: 100vh;
-  background: #fff;
-  z-index: 100;
-  padding: 20px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
-}
-
-
-
 #text_viewer {
   flex: 1;
-  background: #fff;
-  padding: 1rem;
-  border-radius: .75rem;
-  white-space: pre-wrap;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
-  border: 5px solid #e2e8f0;
+  background: transparent !important; /* Removes white box */
+  padding: 1.5rem;
   line-height: 1.8;
-  position: relative;
+  font-size: 1rem;
+  color: #000;
+  font-weight: 500;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  margin: 0;
   overflow-y: auto;
-  font-size: 1.rem;
-
-  /* 👇 Add these two lines */
-  color: #000;         /* black text */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+   color: #000;         /* black text */
   font-weight: bold;   /* bold text */
+}
+#text_viewer::-webkit-scrollbar {
+  display: none;
 }
 
 
@@ -211,17 +191,15 @@ li:hover {
 <div id="right">
   <button id="menu_toggle_btn" class="sm:hidden fixed top-4 left-4 z-40 p-3 bg-indigo-600 text-white rounded-full shadow-lg">☰</button>
 
-  <div id="text_viewer_container">
-    <div id="text_viewer" class="text-gray-800 text-base">
-      <h1 class="text-2xl font-bold mb-4 text-indigo-700">Welcome</h1>
-      <p class="mb-3">Upload a folder containing many <code>.txt</code> files. Files will be saved to Supabase and displayed here.</p>
-    </div>
+ <div id="text_viewer" class="text-gray-800 text-base">
+  <h1 class="text-2xl font-bold mb-4 text-indigo-700">Welcome</h1>
+  <p class="mb-3">Upload a folder containing many <code>.txt</code> files. Files will be saved to Supabase and displayed here.</p>
+</div>
 
-    <div id="navigation_controls" class="flex justify-center space-x-4 py-4 sm:pt-4">
-      <button id="prev_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">&larr; Prev</button>
-      <button id="next_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">Next &rarr;</button>
-    </div>
-  </div>
+<div id="navigation_controls" class="flex justify-center space-x-4 py-4 sm:pt-4">
+  <button id="prev_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">&larr; Prev</button>
+  <button id="next_topic_btn" class="flex-1 max-w-xs py-3 rounded-xl text-lg disabled:opacity-50">Next &rarr;</button>
+</div>
 
   <div style="padding:12px;">
     <div class="small mb-2">Selected folder files (client-side preview)</div>
